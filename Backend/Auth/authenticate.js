@@ -1,103 +1,125 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const User = require('../Models/users.schema');
+const User = require('../models/users.schema');
+const { catchAsync } = require('../Middlewares/errorHandler');
+const { 
+  ValidationError, 
+  AuthenticationError, 
+  ConflictError 
+} = require('../utils/errors');
 require('dotenv').config();
 
-const signup = async (req, res) => {
+const signup = catchAsync(async (req, res, next) => {
   const { username, email, password, fullName, gender } = req.body;
-  try {
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { username }] 
-    });
-    
-    if (existingUser) {
-      return res.status(409).json({ 
-        message: 'User already exists' 
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({
-      username,
-      email,
-      password: hashedPassword,
-      displayName: fullName, // Map fullName to displayName
-      bio: "",
-      avatarUrl: "", // Check if we want a default avatar based on gender later
-    });
-    await newUser.save();
-    
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
-    
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-    };
-    
-    res.cookie('token', token, cookieOptions);
-    res.status(201).json({ message: 'User created successfully' });
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ message: 'Error signing up' });
+  
+  // Validate required fields
+  if (!username || !email || !password) {
+    throw new ValidationError('Username, email, and password are required');
   }
-};
 
-const login = async (req, res) => {
-  const { email, password } = req.body; // email field holds "email or username"
-  try {
-    // Check if input is email or username
-    const user = await User.findOne({ 
-        $or: [
-            { email: email }, 
-            { username: email }
-        ] 
-    });
-
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
-    const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
-    
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-    };
-    
-    res.cookie('token', token, cookieOptions);
-    res.cookie('refreshToken', refreshToken, cookieOptions);
-    
-    // Return token and user in response for frontend context
-    res.status(200).json({ 
-        message: 'Login successful',
-        token,
-        user: {
-            _id: user._id,
-            username: user.username,
-            email: user.email,
-            displayName: user.displayName,
-            avatarUrl: user.avatarUrl
-        }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Error logging in' });
+  // Check if user already exists
+  const existingUser = await User.findOne({ 
+    $or: [{ email }, { username }] 
+  });
+  
+  if (existingUser) {
+    throw new ConflictError('User with this email or username already exists');
   }
-};
+
+  // Hash password and create user
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = new User({
+    username,
+    email,
+    password: hashedPassword,
+    displayName: fullName,
+    bio: "",
+    avatarUrl: "",
+  });
+  await newUser.save();
+  
+  // Generate token
+  const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
+    expiresIn: '1h',
+  });
+  
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  };
+  
+  res.cookie('token', token, cookieOptions);
+  res.status(201).json({ 
+    status: 'success',
+    message: 'User created successfully',
+    token,
+    user: {
+      _id: newUser._id,
+      username: newUser.username,
+      email: newUser.email,
+      displayName: newUser.displayName,
+      avatarUrl: newUser.avatarUrl
+    }
+  });
+});
+
+const login = catchAsync(async (req, res, next) => {
+  const { email, password } = req.body;
+  
+  // Validate input
+  if (!email || !password) {
+    throw new ValidationError('Email and password are required');
+  }
+
+  // Find user by email or username
+  const user = await User.findOne({ 
+    $or: [
+      { email: email }, 
+      { username: email }
+    ] 
+  });
+
+  if (!user) {
+    throw new AuthenticationError('Invalid credentials');
+  }
+  
+  // Verify password
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    throw new AuthenticationError('Invalid credentials');
+  }
+  
+  // Generate tokens
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: '1h',
+  });
+  const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: '7d',
+  });
+  
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  };
+  
+  res.cookie('token', token, cookieOptions);
+  res.cookie('refreshToken', refreshToken, cookieOptions);
+  
+  res.status(200).json({ 
+    status: 'success',
+    message: 'Login successful',
+    token,
+    user: {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl
+    }
+  });
+});
 
 const logout = (req, res) => {
   const cookieOptions = {
@@ -108,37 +130,41 @@ const logout = (req, res) => {
   
   res.clearCookie('token', cookieOptions);
   res.clearCookie('refreshToken', cookieOptions);
-  res.status(200).json({ message: 'Logout successful' });
+  res.status(200).json({ 
+    status: 'success',
+    message: 'Logout successful' 
+  });
 };
 
-const refreshAccessToken = (req, res) => {
+const refreshAccessToken = catchAsync(async (req, res, next) => {
   const refreshToken = req.cookies.refreshToken;
+  
   if (!refreshToken) {
-    return res.status(401).json({ message: 'No refresh token provided' });
+    throw new AuthenticationError('No refresh token provided');
   }
 
-  try {
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+  // Verify refresh token
+  const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
 
-    const newAccessToken = jwt.sign(
-      { id: decoded.id },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+  // Generate new access token
+  const newAccessToken = jwt.sign(
+    { id: decoded.id },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-    };
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  };
 
-    // Send new token
-    res.cookie('token', newAccessToken, cookieOptions);
-    res.status(200).json({ message: 'Token refreshed successfully' });
-  } catch (error) {
-    console.error('Refresh token error:', error);
-    res.status(403).json({ message: 'Invalid or expired refresh token' });
-  }
-};
+  res.cookie('token', newAccessToken, cookieOptions);
+  res.status(200).json({ 
+    status: 'success',
+    message: 'Token refreshed successfully',
+    token: newAccessToken
+  });
+});
 
 module.exports = { signup, login, logout, refreshAccessToken };

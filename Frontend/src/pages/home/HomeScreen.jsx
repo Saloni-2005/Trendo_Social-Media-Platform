@@ -23,18 +23,22 @@ const HomeScreen = () => {
   const fetchStories = async () => {
     try {
       const res = await axios.get('/stories/feed');
-      // res.data is array of { user: {...}, stories: [...] }
-      setStories(res.data);
+      // Backend now returns { status: 'success', data: [...] }
+      setStories(res.data.data || []);
     } catch (error) {
       console.error("Error fetching stories", error);
+      setStories([]);
     }
   };
 
   const fetchPosts = async () => {
     try {
       const res = await axios.get('/posts/feed/home');
+      // Handle both old array format and new object format just in case
+      const postsData = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      
       // enhance posts with local 'liked' state
-      const enhancedPosts = res.data.map(post => ({
+      const enhancedPosts = postsData.map(post => ({
         ...post,
         liked: post.likes?.includes(user?._id) || false,
         saved: false
@@ -110,7 +114,7 @@ const HomeScreen = () => {
                 <div className={`w-18 h-18 rounded-full flex items-center justify-center mb-2 transition-transform group-hover:scale-105 relative ${myStory ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[3px]' : ''}`}>
                     <div className="w-16 h-16 bg-white rounded-full p-[2px] overflow-hidden">
                          {user?.avatarUrl ? (
-                             <LazyImage src={user.avatarUrl} className="rounded-full shadow-inner"/>
+                             <LazyImage src={user.avatarUrl} className="rounded-full shadow-inner w-full h-full"/>
                          ) : (
                              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                                  <User className="w-6 h-6 text-gray-400"/>
@@ -134,7 +138,7 @@ const HomeScreen = () => {
                 <div className="w-18 h-18 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[3px] mb-2 transition-transform group-hover:scale-105">
                     <div className="w-16 h-16 bg-white rounded-full p-[2px] overflow-hidden">
                         {storyGroup.user.avatarUrl ? (
-                            <LazyImage src={storyGroup.user.avatarUrl} className="rounded-full"/>
+                            <LazyImage src={storyGroup.user.avatarUrl} className="rounded-full w-full h-full"/>
                         ) : (
                              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                                  <User className="w-6 h-6 text-gray-400"/>

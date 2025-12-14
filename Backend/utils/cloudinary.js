@@ -14,7 +14,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'trendo_uploads', // Folder name in Cloudinary
-    allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'mp4', 'mov'], // Add video formats if needed
+    allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp', 'mp4', 'mov'], // Add video formats if needed
     resource_type: 'auto', // Important for allowing both images and videos
   },
 });

@@ -1,4 +1,4 @@
-const User = require("../Models/users.schema");
+const User = require("../models/users.schema");
 const { createNotification } = require('../services/notificationService');
 
 getAllUsers = async (req, res) => {
@@ -73,7 +73,24 @@ followUser = async (req, res) => {
       return res.status(404).json({ message: "Current user not found" });
     }
 
-    if (!userToFollow.followers.includes(currentUserId)) {
+    // Check if already following
+    if (userToFollow.followers.includes(currentUserId)) {
+        return res.status(400).json({ message: "Already following" });
+    }
+
+    // Check if already requested
+    if (userToFollow.followRequests && userToFollow.followRequests.includes(currentUserId)) {
+        return res.status(400).json({ message: "Follow request already sent" });
+    }
+
+    if (userToFollow.settings && userToFollow.settings.private) {
+        // Send Follow Request
+        userToFollow.followRequests.push(currentUserId);
+        await userToFollow.save();
+        await createNotification(req, userToFollow._id, 'follow_request', {});
+        return res.status(200).json({ message: "Follow request sent", status: 'requested' });
+    } else {
+        // Direct Follow
         userToFollow.followers.push(currentUserId);
         userToFollow.followersCount = userToFollow.followers.length;
         
@@ -84,10 +101,10 @@ followUser = async (req, res) => {
         await currentUser.save();
 
         await createNotification(req, userToFollow._id, 'follow', {});
+        return res.status(200).json({ message: "User followed successfully", status: 'following' });
     }
-    
-    res.status(200).json({ message: "User followed successfully" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error following user" });
   }
 };
@@ -174,6 +191,70 @@ const getUserConnections = async (req, res) => {
   }
 };
 
+const acceptFollowRequest = async (req, res) => {
+  try {
+    const { requesterId } = req.body;
+    const currentUserId = req.user.id;
+
+    const currentUser = await User.findById(currentUserId);
+    const requester = await User.findById(requesterId);
+
+    if (!currentUser || !requester) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!currentUser.followRequests.includes(requesterId)) {
+      return res.status(400).json({ message: "No request found" });
+    }
+
+    // Remove from requests
+    currentUser.followRequests = currentUser.followRequests.filter(id => id.toString() !== requesterId);
+    
+    // Add to followers/following
+    currentUser.followers.push(requesterId);
+    currentUser.followersCount = currentUser.followers.length;
+    
+    requester.following.push(currentUserId);
+    requester.followingCount = requester.following.length;
+
+    await currentUser.save();
+    await requester.save();
+
+    await createNotification(req, requesterId, 'follow_accept', {}); // Notify requester their request was accepted
+
+    res.status(200).json({ message: "Request accepted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error accepting request" });
+  }
+};
+
+const rejectFollowRequest = async (req, res) => {
+  try {
+    const { requesterId } = req.body;
+    const currentUserId = req.user.id;
+
+    const currentUser = await User.findById(currentUserId);
+    if (!currentUser) return res.status(404).json({ message: "User not found" });
+
+    currentUser.followRequests = currentUser.followRequests.filter(id => id.toString() !== requesterId);
+    await currentUser.save();
+
+    res.status(200).json({ message: "Request rejected" });
+  } catch (error) {
+    res.status(500).json({ message: "Error rejecting request" });
+  }
+};
+
+const getFollowRequests = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate('followRequests', 'username displayName avatarUrl');
+    res.status(200).json(user.followRequests || []);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching requests" });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -183,5 +264,8 @@ module.exports = {
   unfollowUser,
   updateUserSettings,
   searchUsers,
-  getUserConnections
+  getUserConnections,
+  acceptFollowRequest,
+  rejectFollowRequest,
+  getFollowRequests
 };

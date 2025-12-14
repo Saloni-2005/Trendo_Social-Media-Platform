@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, MoreHorizontal, Image, Settings, Grid, Bookmark, User as UserIcon, Heart, MessageCircle } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, Image, Settings, Grid, Bookmark, User as UserIcon, Heart, MessageCircle, Lock } from 'lucide-react';
 import BottomNav from '../../components/common/BottomNav';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -14,6 +14,7 @@ const ProfileScreen = () => {
   const [posts, setPosts] = useState([]);
   const [savedPosts, setSavedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isPrivateLocked, setIsPrivateLocked] = useState(false);
   const [modalConfig, setModalConfig] = useState({ isOpen: false, type: null, title: '' });
   
   const { userId } = useParams();
@@ -46,12 +47,22 @@ const ProfileScreen = () => {
   const fetchProfileData = async () => {
     try {
       setLoading(true);
-      const [userRes, postsRes] = await Promise.all([
-        axios.get(`/users/${targetUserId}`),
-        axios.get(`/posts/user/${targetUserId}`)
-      ]);
+      const userRes = await axios.get(`/users/${targetUserId}`);
       setProfile(userRes.data);
-      setPosts(postsRes.data);
+      
+      try {
+          const postsRes = await axios.get(`/posts/user/${targetUserId}`);
+          setPosts(postsRes.data);
+          setIsPrivateLocked(false);
+      } catch (err) {
+          if (err.response && err.response.status === 403) {
+              setIsPrivateLocked(true);
+              setPosts([]);
+          } else {
+              console.error(err);
+              toast.error("Failed to load posts");
+          }
+      }
     } catch (error) {
       console.error("Error fetching profile", error);
       toast.error("Failed to load profile");
@@ -60,7 +71,8 @@ const ProfileScreen = () => {
     }
   };
 
-  const isFollowing = profile?.followers?.includes(user?._id);
+  const isFollowing = profile?.followers?.some(id => id.toString() === user?._id);
+  const isRequested = profile?.followRequests?.some(id => id.toString() === user?._id);
 
   const handleFollowToggle = async () => {
     if (!user) return navigate('/login');
@@ -78,7 +90,10 @@ const ProfileScreen = () => {
            : [...(prev.followers || []), user._id]
       }));
       
-      toast.success(isFollowing ? "Unfollowed" : "Followed");
+      toast.success(res.data.status === 'requested' ? "Request sent" : (isFollowing ? "Unfollowed" : "Followed"));
+      
+      // Refresh profile to get updated lists
+      fetchProfileData();
     } catch (error) {
       console.error("Follow error", error);
       toast.error("Action failed");
@@ -177,7 +192,7 @@ const ProfileScreen = () => {
           <div className="flex gap-3">
             {isOwnProfile ? (
                  <button
-                  onClick={() => navigate('/settings')} // Placeholder or actual settings page
+                  onClick={() => navigate('/edit-profile')} // Navigate to edit profile
                   className="flex-1 bg-gray-100 hover:bg-gray-200 py-2.5 rounded-lg font-semibold text-gray-800 transition-colors"
                 >
                   Edit Profile
@@ -192,7 +207,7 @@ const ProfileScreen = () => {
                           : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
                       }`}
                     >
-                      {isFollowing ? 'Following' : 'Follow'}
+                      {isFollowing ? 'Following' : isRequested ? 'Requested' : 'Follow'}
                     </button>
                     <button
                       onClick={() => {
@@ -255,7 +270,7 @@ const ProfileScreen = () => {
           {
             ((activeTab === 'posts' && posts.length === 0) || 
              (activeTab === 'saved' && savedPosts.length === 0) ||
-             (activeTab === 'tagged')) && (
+             (activeTab === 'tagged')) && !isPrivateLocked && (
                <div className="col-span-3 py-20 flex flex-col items-center justify-center text-gray-400">
                    <div className="w-16 h-16 rounded-full border-2 border-gray-200 flex items-center justify-center mb-4">
                        <Grid className="w-8 h-8 text-gray-300" />
@@ -264,6 +279,17 @@ const ProfileScreen = () => {
                </div>
            )}
         </div>
+
+        {/* Private Account Placeholder */}
+        {isPrivateLocked && (
+            <div className="py-20 flex flex-col items-center justify-center text-gray-900 border-t border-gray-100">
+                <div className="w-16 h-16 rounded-full border-2 border-gray-900 flex items-center justify-center mb-4">
+                    <Lock className="w-8 h-8" />
+                </div>
+                <h3 className="font-bold text-lg">This Account is Private</h3>
+                <p className="text-gray-500 text-sm mt-1">Follow to see their photos and videos.</p>
+            </div>
+        )}
       </div>
 
        <FollowersListModal 

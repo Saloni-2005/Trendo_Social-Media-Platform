@@ -35,7 +35,9 @@ const StoriesScreen = () => {
   const fetchStories = async () => {
     try {
       const res = await axios.get(`/stories/user/${userId}`);
-      if (res.data.length === 0) {
+      const storiesData = res.data.data || [];
+      
+      if (storiesData.length === 0) {
         if (userId === user._id) {
             navigate('/stories/create'); // redirect to create if no stories
         } else {
@@ -44,7 +46,7 @@ const StoriesScreen = () => {
         }
         return;
       }
-      setStories(res.data);
+      setStories(storiesData);
       setLoading(false);
     } catch (error) {
       console.error(error);
@@ -109,14 +111,17 @@ const StoriesScreen = () => {
     try {
       setUploading(true);
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('file', file); // Multer expects 'file'
       
       const uploadRes = await axios.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
+      // Handle potential new response format for upload as well
+      const imageUrl = uploadRes.data.url || uploadRes.data.data?.url;
+      
       await axios.post('/stories/create', {
-        mediaUrl: uploadRes.data.imageUrl, // upload route returns imageUrl
+        mediaUrl: imageUrl, 
         mediaType: file.type.startsWith('video') ? 'video' : 'image'
       });
       
@@ -194,7 +199,7 @@ const StoriesScreen = () => {
             <div className="flex items-center gap-3">
                  <button onClick={() => navigate('/')}><ArrowLeft className="w-6 h-6"/></button>
                  {story.userId.avatarUrl ? (
-                     <img src={story.userId.avatarUrl} className="w-8 h-8 rounded-full border border-white"/>
+                     <img src={story.userId.avatarUrl} className="w-8 h-8 rounded-full border border-white object-cover"/>
                  ) : (
                      <div className="w-8 h-8 bg-gray-500 rounded-full"></div>
                  )}

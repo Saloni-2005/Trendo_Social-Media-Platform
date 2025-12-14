@@ -20,7 +20,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -29,7 +29,7 @@ const io = socketIo(server, {
 dotenv.config();
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
   credentials: true
 }));
 app.use(express.json());
@@ -48,6 +48,14 @@ app.use('/upload', UploadRouter);
 app.use('/stories', StoriesRouter);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Import error handling middleware
+const { errorHandler, notFound } = require('./Middlewares/errorHandler');
+
+// 404 handler for undefined routes (must be after all other routes)
+app.use(notFound);
+
+// Global error handling middleware (must be last)
+app.use(errorHandler);
 
 const socketService = new SocketService(io);
 app.set('socketService', socketService);

@@ -1,5 +1,5 @@
-const Post = require("../Models/posts.schema");
-const User = require("../Models/users.schema");
+const Post = require("../models/posts.schema");
+const User = require("../models/users.schema");
 const { createNotification } = require('../services/notificationService');
 
 const createPost = async (req, res) => {
@@ -180,11 +180,31 @@ const deletePost = async (req, res) => {
 
 const getUserPosts = async (req, res) => {
   try {
-    const posts = await Post.find({ authorId: req.params.userId })
+    const authorId = req.params.userId;
+    const requestingUserId = req.user ? req.user.id : null; 
+
+    const author = await User.findById(authorId);
+    if (!author) {
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    // Privacy Check
+    // If account is private AND requester is NOT the author AND requester is NOT a follower
+    if (author.settings && author.settings.private) {
+        const isOwner = authorId.toString() === requestingUserId;
+        const isFollower = author.followers.map(id => id.toString()).includes(requestingUserId);
+        
+        if (!isOwner && !isFollower) {
+            return res.status(403).json({ message: "This account is private", isPrivate: true });
+        }
+    }
+
+    const posts = await Post.find({ authorId })
       .sort({ createdAt: -1 })
       .populate('authorId', 'username avatarUrl');
     res.status(200).json(posts);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error fetching user posts" });
   }
 };

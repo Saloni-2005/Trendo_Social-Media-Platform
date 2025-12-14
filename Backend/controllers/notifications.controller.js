@@ -1,4 +1,4 @@
-const Notification = require('../Models/notifications.schema');
+const Notification = require('../models/notifications.schema');
 
 // List notifications for logged-in user
 const listNotifications = async (req, res) => {

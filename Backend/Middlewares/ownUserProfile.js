@@ -1,4 +1,4 @@
-const User = require("../Models/users.schema");
+const User = require("../models/users.schema");
 
 const ownUserProfile = async (req, res, next) => {
   try {

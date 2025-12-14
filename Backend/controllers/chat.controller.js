@@ -1,6 +1,6 @@
-const Conversation = require('../Models/conversations.schema');
-const Message = require('../Models/messages.schema');
-const User = require('../Models/users.schema');
+const Conversation = require('../models/conversations.schema');
+const Message = require('../models/messages.schema');
+const User = require('../models/users.schema');
 
 const createOrGetConversation = async (req, res) => {
   try {

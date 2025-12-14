@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
 
   // Configure axios defaults
-  axios.defaults.baseURL = 'http://localhost:7845'; // Adjust if backend runs on different port
+  axios.defaults.baseURL = 'http://localhost:7845'; // Backend server port
   
   useEffect(() => {
     if (token) {
@@ -115,6 +115,13 @@ export const AuthProvider = ({ children }) => {
     delete axios.defaults.headers.common['Authorization'];
   };
 
+  const updateUser = (userData) => {
+    // Merge existing user data with updates
+    const updatedUser = { ...user, ...userData };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   const value = {
     user,
     token, // Add token to context value
@@ -122,6 +129,7 @@ export const AuthProvider = ({ children }) => {
     login,
     signup,
     logout,
+    updateUser,
     isAuthenticated: !!user
   };
 

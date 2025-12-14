@@ -12,10 +12,11 @@ const UserSchema = new mongoose.Schema({
   followers: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
   following: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
   savedPosts: [{type: mongoose.Schema.Types.ObjectId, ref: 'Post'}],
+  followRequests: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
   settings: {
     private: {type: Boolean, default: false},
     notifications: {type: Object, default: {}},
   },
 });
 
-module.exports = mongoose.model("User", UserSchema);
+module.exports = mongoose.models.User || mongoose.model("User", UserSchema);

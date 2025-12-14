@@ -9,11 +9,13 @@ import { toast } from 'react-hot-toast';
 const NotificationsScreen = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [notifications, setNotifications] = useState([]);
+  const [followRequests, setFollowRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchNotifications();
+    fetchRequests();
   }, []);
 
   const fetchNotifications = async () => {
@@ -27,6 +29,31 @@ const NotificationsScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchRequests = async () => {
+      try {
+          const res = await axios.get('/users/requests'); // Updated endpoint path based on routing
+          setFollowRequests(res.data);
+      } catch (error) {
+          console.error("Failed to load requests", error);
+      }
+  };
+
+  const handleRequest = async (requesterId, action) => {
+      try {
+          // Optimistic update
+          setFollowRequests(prev => prev.filter(r => r._id !== requesterId));
+          
+          await axios.post(`/users/requests/${action}`, { requesterId });
+          toast.success(action === 'accept' ? "Request accepted" : "Request removed");
+          
+          // If accepted, maybe refresh notifications or add local notification?
+      } catch (error) {
+          console.error(`Failed to ${action} request`, error);
+          toast.error("Action failed");
+          fetchRequests(); // Revert
+      }
   };
 
   const markAsRead = async (id) => {
@@ -99,8 +126,31 @@ const NotificationsScreen = () => {
                 >
                   Mark all read
                 </button>
+
             )}
           </div>
+
+          {/* Requests Banner (if any) */}
+          {followRequests.length > 0 && activeTab !== 'requests' && (
+              <div 
+                onClick={() => setActiveTab('requests')}
+                className="px-4 py-2 bg-blue-50 border-y border-blue-100 flex items-center justify-between cursor-pointer"
+              >
+                  <div className="flex items-center gap-2">
+                       <div className="flex -space-x-2">
+                           {followRequests.slice(0,3).map(u => (
+                               <div key={u._id} className="w-6 h-6 rounded-full border border-white overflow-hidden">
+                                   <img src={u.avatarUrl || 'https://via.placeholder.com/150'} className="w-full h-full object-cover"/>
+                               </div>
+                           ))}
+                       </div>
+                       <span className="text-sm font-semibold text-blue-800">
+                           {followRequests.length} follow request{followRequests.length > 1 ? 's' : ''}
+                       </span>
+                  </div>
+                  <Filter className="w-4 h-4 text-blue-500"/>
+              </div>
+          )}
 
           {/* Filter Tabs */}
           <div className="flex gap-4 px-4 pb-3 overflow-x-auto scrollbar-hide">
@@ -133,13 +183,57 @@ const NotificationsScreen = () => {
               }`}
             >
               Follows
+
             </button>
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'requests'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Requests {followRequests.length > 0 && `(${followRequests.length})`}
+            </button>
+            
           </div>
         </div>
 
         {/* Notifications List */}
         <div className="bg-white">
-          {loading ? <div className="p-10 text-center">Loading...</div> : filteredNotifications.length > 0 ? (
+          {activeTab === 'requests' ? (
+              <div className="divide-y divide-gray-100">
+                  {followRequests.length === 0 ? (
+                      <div className="p-10 text-center text-gray-500">No pending requests</div>
+                  ) : (
+                      followRequests.map(user => (
+                          <div key={user._id} className="flex items-center justify-between p-4">
+                              <div className="flex items-center gap-3" onClick={() => navigate(`/profile/${user._id}`)}>
+                                  <img src={user.avatarUrl} className="w-12 h-12 rounded-full object-cover bg-gray-200"/>
+                                  <div>
+                                      <p className="font-bold text-gray-900">{user.username}</p>
+                                      <p className="text-sm text-gray-500">{user.displayName}</p>
+                                  </div>
+                              </div>
+                              <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => handleRequest(user._id, 'accept')}
+                                    className="px-4 py-1.5 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700"
+                                  >
+                                      Confirm
+                                  </button>
+                                  <button 
+                                    onClick={() => handleRequest(user._id, 'reject')}
+                                    className="px-4 py-1.5 bg-gray-100 text-gray-800 rounded-lg font-semibold text-sm hover:bg-gray-200"
+                                  >
+                                      Delete
+                                  </button>
+                              </div>
+                          </div>
+                      ))
+                  )}
+              </div>
+          ) : loading ? <div className="p-10 text-center">Loading...</div> : filteredNotifications.length > 0 ? (
             <div>
               {filteredNotifications.map((notif) => (
                 <div

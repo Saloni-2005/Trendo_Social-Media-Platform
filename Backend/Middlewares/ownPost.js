@@ -1,4 +1,4 @@
-const Post = require("../Models/posts.schema");
+const Post = require("../models/posts.schema");
 
 const ownPost = async (req, res, next) => {
   try {

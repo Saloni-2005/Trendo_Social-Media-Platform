@@ -10,6 +10,8 @@ const LoginScreen = lazy(() => import('./pages/auth/LoginScreen'));
 const SignupScreen = lazy(() => import('./pages/auth/SignupScreen'));
 const HomeScreen = lazy(() => import('./pages/home/HomeScreen'));
 const ProfileScreen = lazy(() => import('./pages/profile/ProfileScreen'));
+const EditProfileScreen = lazy(() => import('./pages/profile/EditProfileScreen'));
+const SettingsScreen = lazy(() => import('./pages/profile/SettingsScreen'));
 const SearchScreen = lazy(() => import('./pages/search/SearchScreen'));
 const PostCreateScreen = lazy(() => import('./pages/posts/PostCreateScreen'));
 const PostDetailScreen = lazy(() => import('./pages/posts/PostDetailScreen'));
@@ -56,11 +58,13 @@ function App() {
                     {/* Profile Routes */}
                     <Route path="/profile" element={<ProfileScreen />} />
                     <Route path="/profile/:userId" element={<ProfileScreen />} />
+                    <Route path="/edit-profile" element={<EditProfileScreen />} />
+                    <Route path="/settings" element={<SettingsScreen />} />
                     
                     <Route path="/search" element={<SearchScreen />} />
                     <Route path="/notifications" element={<NotificationsScreen />} />
                     <Route path="/post/:id" element={<PostDetailScreen />} />
-                    <Route path="/stories/create" element={<StoriesScreen />} />
+                    <Route path="/stories/:userId" element={<StoriesScreen />} />
                   </Route>
                   
                   <Route path="*" element={<Navigate to="/" />} />

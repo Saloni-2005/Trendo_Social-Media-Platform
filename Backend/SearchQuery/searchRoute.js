@@ -1,8 +1,8 @@
 const express = require('express');
 const SearchRouter = express.Router();
 const tokenPresence = require('../Middlewares/tokenPresence');
-const Post = require('../Models/posts.schema');
-const User = require('../Models/users.schema');
+const Post = require('../models/posts.schema');
+const User = require('../models/users.schema');
 
 SearchRouter.get('/', tokenPresence, async (req, res) => {
   const { q, type } = req.query;

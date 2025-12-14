@@ -1,4 +1,4 @@
-const Notification = require('../Models/notifications.schema');
+const Notification = require('../models/notifications.schema');
 
 const createNotification = async (req, recipientId, type, payload) => {
   try {

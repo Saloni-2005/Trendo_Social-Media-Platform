@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Search, MessageSquare, Bell, User } from 'lucide-react';
+import { Home, Search, MessageSquare, Bell, User, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const BottomNav = ({ active }) => (
@@ -21,6 +21,12 @@ const BottomNav = ({ active }) => (
         <Bell className="w-6 h-6" />
         <span className="text-xs">Alerts</span>
       </Link>
+      
+      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
+        <Link to="/create" className="flex items-center justify-center w-14 h-14 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-lg hover:scale-105 transition-transform border-4 border-white">
+          <Plus className="w-8 h-8 text-white" />
+        </Link>
+      </div>
       <Link to="/profile" className={`flex flex-col items-center gap-1 ${active === 'profile' ? 'text-blue-600' : 'text-gray-600'}`}>
         <User className="w-6 h-6" />
         <span className="text-xs">Profile</span>

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
-const User = require('../Models/users.schema');
-const Conversation = require('../Models/conversations.schema');
-const Message = require('../Models/messages.schema');
+const User = require('../models/users.schema');
+const Conversation = require('../models/conversations.schema');
+const Message = require('../models/messages.schema');
 
 class SocketService {
   constructor(io) {
@@ -198,7 +198,7 @@ class SocketService {
           username: socket.user.username
         });
         
-        socket.broadcast.emit('call_ended');
+        // socket.broadcast.emit('call_ended'); // REMOVED: potentially annoying global broadcast
       });
 
       // --- Calling Events ---

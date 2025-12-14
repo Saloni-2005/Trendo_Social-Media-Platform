@@ -1,4 +1,4 @@
-const Comment = require("../Models/comments.schema");
+const Comment = require("../models/comments.schema");
 
 const ownComment = async (req, res, next) => {
   try {

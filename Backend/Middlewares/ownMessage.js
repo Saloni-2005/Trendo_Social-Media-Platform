@@ -1,4 +1,4 @@
-const Message = require("../Models/messages.schema");
+const Message = require("../models/messages.schema");
 
 const ownMessage = async (req, res, next) => {
   try {
